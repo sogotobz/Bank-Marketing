@@ -1,0 +1,60 @@
+import pandas as pd
+import seaborn as sns
+import matplotlib.pyplot as plt
+import shap
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import LabelEncoder
+from sklearn.linear_model import LogisticRegression
+from sklearn.metrics import confusion_matrix, accuracy_score, precision_score, recall_score, classification_report,roc_curve,f1_score,auc
+# Load the dataset
+df = pd.read_csv(r"C:\Users\sogot\Downloads\bank+marketing (1)\bank\bank-full.csv", sep=';')
+print(df.head())
+print(df.columns)
+print(df.describe())
+print(df.info())
+
+# Encoding Categorical Features
+
+df= pd.get_dummies(df, columns=['job', 'marital', 'education', 'default', 'housing', 'loan', 'contact', 'month', 'poutcome'], drop_first=True)
+print(df.columns)
+df['y'] = df['y'].map({'yes': 1, 'no': 0})
+print(df['y'].value_counts())
+
+# Train-test split
+X = df.drop('y', axis=1)
+y = df['y']
+X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42)
+
+# Train the model
+model = LogisticRegression(max_iter=1000)
+model.fit(X_train, y_train)
+
+# Predict and evaluate
+y_pred = model.predict(X_test)
+print("Confusion Matrix:\n", confusion_matrix(y_test, y_pred))
+print("Accuracy:", accuracy_score(y_test, y_pred))
+print("Precision:", precision_score(y_test, y_pred))
+print("Recall:", recall_score(y_test, y_pred))
+print(classification_report(y_test, y_pred))
+print("F1 Score:", f1_score(y_test, y_pred))
+
+y_prob = model.predict_proba(X_test)[:, 1]
+fpr, tpr, thresholds = roc_curve(y_test, y_prob)
+roc_auc = auc(fpr, tpr)
+print("ROC AUC:", roc_auc)
+
+explainer = shap.Explainer(model, X_train)
+shap_values = explainer(X_test)
+shap.summary_plot(shap_values, X_test, plot_type="bar")
+
+samples = X_test.iloc[:5]
+sample_preds = model.predict(samples)
+sample_probs = model.predict_proba(samples)[:, 1]
+print("Sample Predictions:", sample_preds)
+print("Sample Probabilities:", sample_probs)
+
+for i in range(len(samples)):
+    print(f"Sample {i+1}:")
+    print(f"  Prediction: {sample_preds[i]}")
+    print(f"  Probability: {sample_probs[i]}")
+    shap.force_plot(explainer.expected_value, shap_values[i].values, samples.iloc[i], matplotlib=True)
